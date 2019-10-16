@@ -2,7 +2,10 @@
  *
  * http://www.leonerd.org.uk/code/libtermkey/
  */
-static inline unsigned int utf8_seqlen(long codepoint)
+unsigned int utf8_seqlen(long codepoint);
+
+#if defined(DEFINE_INLINES) || USE_INLINE
+INLINE unsigned int utf8_seqlen(long codepoint)
 {
   if(codepoint < 0x0000080) return 1;
   if(codepoint < 0x0000800) return 2;
@@ -11,9 +14,13 @@ static inline unsigned int utf8_seqlen(long codepoint)
   if(codepoint < 0x4000000) return 5;
   return 6;
 }
+#endif
 
-/* Does NOT NUL-terminate the buffer */
-static int fill_utf8(long codepoint, char *str)
+// Does NOT NUL-terminate the buffer
+int fill_utf8(long codepoint, char *str);
+
+#if defined(DEFINE_INLINES) || USE_INLINE
+INLINE int fill_utf8(long codepoint, char *str)
 {
   int nbytes = utf8_seqlen(codepoint);
 
@@ -36,4 +43,5 @@ static int fill_utf8(long codepoint, char *str)
 
   return nbytes;
 }
-/* end copy */
+#endif
+// end copy

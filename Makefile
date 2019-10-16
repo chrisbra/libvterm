@@ -8,7 +8,7 @@ ifneq ($(VERBOSE),1)
   LIBTOOL +=--quiet
 endif
 
-override CFLAGS +=-Wall -Iinclude -std=c99 -Wpedantic
+override CFLAGS +=-Wall -Iinclude -std=c99 -Wpedantic -DINLINE=""
 
 ifeq ($(shell uname),SunOS)
   override CFLAGS +=-D__EXTENSIONS__ -D_XPG6 -D__XOPEN_OR_POSIX
@@ -37,13 +37,13 @@ INCFILES=$(TBLFILES:.tbl=.inc)
 HFILES_INT=$(sort $(wildcard src/*.h)) $(HFILES)
 
 VERSION_MAJOR=0
-VERSION_MINOR=1
+VERSION_MINOR=0
 
 VERSION_CURRENT=0
 VERSION_REVISION=0
 VERSION_AGE=0
 
-VERSION=$(VERSION_MAJOR).$(VERSION_MINOR)
+VERSION=0
 
 PREFIX=/usr/local
 BINDIR=$(PREFIX)/bin
@@ -52,36 +52,30 @@ INCDIR=$(PREFIX)/include
 MANDIR=$(PREFIX)/share/man
 MAN3DIR=$(MANDIR)/man3
 
+# Uncomment to check for memory access errors with valgrind.
+# VALGRIND=1
+
 all: $(LIBRARY) $(BINFILES)
 
 $(LIBRARY): $(OBJECTS)
-	@echo LINK $@
-	@$(LIBTOOL) --mode=link --tag=CC $(CC) -rpath $(LIBDIR) -version-info $(VERSION_CURRENT):$(VERSION_REVISION):$(VERSION_AGE) -o $@ $^ $(LDFLAGS)
+	$(LIBTOOL) --mode=link --tag=CC $(CC) -rpath $(LIBDIR) -version-info $(VERSION_CURRENT):$(VERSION_REVISION):$(VERSION_AGE) -o $@ $^ $(LDFLAGS)
 
 src/%.lo: src/%.c $(HFILES_INT)
-	@echo CC $<
-	@$(LIBTOOL) --mode=compile --tag=CC $(CC) $(CFLAGS) -o $@ -c $<
+	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(CFLAGS) -o $@ -c $<
 
 src/encoding/%.inc: src/encoding/%.tbl
-	@echo TBL $<
-	@perl -CSD tbl2inc_c.pl $< >$@
-
-src/fullwidth.inc:
-	@perl find-wide-chars.pl >$@
+	perl -CSD tbl2inc_c.pl $< >$@
 
 src/encoding.lo: $(INCFILES)
 
 bin/%: bin/%.c $(LIBRARY)
-	@echo CC $<
-	@$(LIBTOOL) --mode=link --tag=CC $(CC) $(CFLAGS) -o $@ $< -lvterm $(LDFLAGS)
+	$(LIBTOOL) --mode=link --tag=CC $(CC) $(CFLAGS) -o $@ $< -lvterm $(LDFLAGS)
 
 t/harness.lo: t/harness.c $(HFILES)
-	@echo CC $<
-	@$(LIBTOOL) --mode=compile --tag=CC $(CC) $(CFLAGS) -o $@ -c $<
+	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(CFLAGS) -o $@ -c $<
 
 t/harness: t/harness.lo $(LIBRARY)
-	@echo LINK $@
-	@$(LIBTOOL) --mode=link --tag=CC $(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(LIBTOOL) --mode=link --tag=CC $(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 .PHONY: test
 test: $(LIBRARY) t/harness
@@ -113,13 +107,15 @@ install-bin: $(BINFILES)
 
 # DIST CUT
 
+VERSION=$(VERSION_MAJOR).$(VERSION_MINOR)
+
 DISTDIR=libvterm-$(VERSION)
 
 distdir: $(INCFILES)
 	mkdir __distdir
-	cp LICENSE CONTRIBUTING __distdir
+	cp LICENSE __distdir
 	mkdir __distdir/src
-	cp src/*.c src/*.h src/*.inc __distdir/src
+	cp src/*.c src/*.h __distdir/src
 	mkdir __distdir/src/encoding
 	cp src/encoding/*.inc __distdir/src/encoding
 	mkdir __distdir/include

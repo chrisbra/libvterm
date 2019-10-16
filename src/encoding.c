@@ -17,7 +17,7 @@ struct UTF8DecoderData {
   int this_cp;
 };
 
-static void init_utf8(VTermEncoding *enc, void *data_)
+static void init_utf8(VTermEncoding *enc UNUSED, void *data_)
 {
   struct UTF8DecoderData *data = data_;
 
@@ -25,7 +25,7 @@ static void init_utf8(VTermEncoding *enc, void *data_)
   data->bytes_total     = 0;
 }
 
-static void decode_utf8(VTermEncoding *enc, void *data_,
+static void decode_utf8(VTermEncoding *enc UNUSED, void *data_,
                         uint32_t cp[], int *cpi, int cplen,
                         const char bytes[], size_t *pos, size_t bytelen)
 {
@@ -46,14 +46,16 @@ static void decode_utf8(VTermEncoding *enc, void *data_,
       return;
 
     else if(c >= 0x20 && c < 0x7f) {
-      if(data->bytes_remaining)
+      if(data->bytes_remaining) {
+        data->bytes_remaining = 0;
         cp[(*cpi)++] = UNICODE_INVALID;
-
+	if (*cpi >= cplen)
+	  break;
+      }
       cp[(*cpi)++] = c;
 #ifdef DEBUG_PRINT_UTF8
       printf(" UTF-8 char: U+%04x\n", c);
 #endif
-      data->bytes_remaining = 0;
     }
 
     else if(c == 0x7f) // DEL
@@ -155,11 +157,11 @@ static void decode_utf8(VTermEncoding *enc, void *data_,
 }
 
 static VTermEncoding encoding_utf8 = {
-  .init   = &init_utf8,
-  .decode = &decode_utf8,
+  &init_utf8,  // init
+  &decode_utf8 // decode
 };
 
-static void decode_usascii(VTermEncoding *enc, void *data,
+static void decode_usascii(VTermEncoding *enc UNUSED, void *data UNUSED,
                            uint32_t cp[], int *cpi, int cplen,
                            const char bytes[], size_t *pos, size_t bytelen)
 {
@@ -176,7 +178,8 @@ static void decode_usascii(VTermEncoding *enc, void *data,
 }
 
 static VTermEncoding encoding_usascii = {
-  .decode = &decode_usascii,
+  NULL,           // init
+  &decode_usascii // decode
 };
 
 struct StaticTableEncoding {
@@ -184,7 +187,7 @@ struct StaticTableEncoding {
   const uint32_t chars[128];
 };
 
-static void decode_table(VTermEncoding *enc, void *data,
+static void decode_table(VTermEncoding *enc, void *data UNUSED,
                          uint32_t cp[], int *cpi, int cplen,
                          const char bytes[], size_t *pos, size_t bytelen)
 {
@@ -217,13 +220,14 @@ encodings[] = {
   { ENC_SINGLE_94, '0', (VTermEncoding*)&encoding_DECdrawing },
   { ENC_SINGLE_94, 'A', (VTermEncoding*)&encoding_uk },
   { ENC_SINGLE_94, 'B', &encoding_usascii },
-  { 0 },
+  { 0, 0, NULL },
 };
 
-/* This ought to be INTERNAL but isn't because it's used by unit testing */
+// This ought to be INTERNAL but isn't because it's used by unit testing
 VTermEncoding *vterm_lookup_encoding(VTermEncodingType type, char designation)
 {
-  for(int i = 0; encodings[i].designation; i++)
+  int i;
+  for(i = 0; encodings[i].designation; i++)
     if(encodings[i].type == type && encodings[i].designation == designation)
       return encodings[i].enc;
   return NULL;
